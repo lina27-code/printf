@@ -74,6 +74,7 @@ else if (format[i] == 'X')
 	}
 
 	va_end(args);
+    _putchar(-1);
 
 	return (count);
 }
