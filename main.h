@@ -11,5 +11,7 @@ int _printf(const char *format, ...);
 int _putchar(char c);
 int print_number(int n);
 int print_binary(unsigned int n);
+int print_unsigned(unsigned int n);
+int print_base(unsigned int n, int base, int is_upper);
 
 #endif

@@ -44,6 +44,17 @@ int _printf(const char *format, ...)
 
 			else if (format[i] == 'b')
 				count += print_binary(va_arg(args, unsigned int));
+           else if (format[i] == 'u')
+	count += print_unsigned(va_arg(args, unsigned int));
+
+else if (format[i] == 'o')
+	count += print_base(va_arg(args, unsigned int), 8, 0);
+
+else if (format[i] == 'x')
+	count += print_base(va_arg(args, unsigned int), 16, 0);
+
+else if (format[i] == 'X')
+	count += print_base(va_arg(args, unsigned int), 16, 1);
 
 			else if (format[i] == '%')
 				count += _putchar('%');
