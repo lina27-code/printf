@@ -55,6 +55,8 @@ else if (format[i] == 'x')
 
 else if (format[i] == 'X')
 	count += print_base(va_arg(args, unsigned int), 16, 1);
+else if (format[i] == 'S')
+	count += print_string_special(va_arg(args, char *));
 
 			else if (format[i] == '%')
 				count += _putchar('%');
