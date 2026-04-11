@@ -20,7 +20,8 @@ int _printf(const char *format, ...)
 	{
 		if (format[i] == '%')
 		{
-            int plus = 0, space = 0, hash = 0;
+        int plus = 0, space = 0, hash = 0;
+        int l = 0, h = 0;
 
 			i++;
              
@@ -36,28 +37,45 @@ int _printf(const char *format, ...)
 
 		i++;
 	} 
-
-			if (format[i] == 'c')
-				count += _putchar(va_arg(args, int));
+         
+          if (format[i] == 'l')
+{
+	l = 1;
+	i++;
+}
+else if (format[i] == 'h')
+{
+	h = 1;
+	i++;
+}
+	 if (format[i] == 'c')
+	count += _putchar(va_arg(args, int));
 
 			else if (format[i] == 's')
 			{
 				char *str = va_arg(args, char *);
 				int j = 0;
 
-				if (str == NULL)
+	if (str == NULL)
 					str = "(null)";
 
-				while (str[j])
+	while (str[j])
 				{
 					count += _putchar(str[j]);
 					j++;
 				}
 			}
 
-			else if (format[i] == 'd' || format[i] == 'i')
+	else if (format[i] == 'd' || format[i] == 'i')
 {
-	int num = va_arg(args, int);
+	long int num;
+
+	if (l)
+		num = va_arg(args, long int);
+	else if (h)
+		num = (short int)va_arg(args, int);
+	else
+		num = va_arg(args, int);
 
 	if (num >= 0)
 	{
@@ -72,12 +90,32 @@ int _printf(const char *format, ...)
 
 			else if (format[i] == 'b')
 				count += print_binary(va_arg(args, unsigned int));
-           else if (format[i] == 'u')
-	count += print_unsigned(va_arg(args, unsigned int));
+
+    else if (format[i] == 'u')
+	{
+	unsigned long int num;
+
+	if (l)
+		num = va_arg(args, unsigned long int);
+	else if (h)
+		num = (unsigned short int)va_arg(args, unsigned int);
+	else
+		num = va_arg(args, unsigned int);
+
+	count += print_unsigned(num);
+}
 
 else if (format[i] == 'o')
 	{
-	unsigned int num = va_arg(args, unsigned int);
+
+	unsigned long int num;
+
+	if (l)
+		num = va_arg(args, unsigned long int);
+	else if (h)
+		num = (unsigned short int)va_arg(args, unsigned int);
+	else
+		num = va_arg(args, unsigned int);
 
 	if (hash && num != 0)
 		count += _putchar('0');
@@ -87,28 +125,42 @@ else if (format[i] == 'o')
 
 else if (format[i] == 'x')
 	{
-	unsigned int num = va_arg(args, unsigned int);
+
+	unsigned long int num;
+
+	if (l)
+		num = va_arg(args, unsigned long int);
+	else if (h)
+		num = (unsigned short int)va_arg(args, unsigned int);
+	else
+		num = va_arg(args, unsigned int);
 
 	if (hash && num != 0)
-	{
+				{
 		count += _putchar('0');
 		count += _putchar('x');
-	}
+				}
 
-	count += print_base(num, 16, 0);
+		count += print_base(num, 16, 0);
 }
 
 else if (format[i] == 'X')
 {
-	unsigned int num = va_arg(args, unsigned int);
+	unsigned long int num;
+
+	if (l)
+		num = va_arg(args, unsigned long int);
+	else if (h)
+		num = (unsigned short int)va_arg(args, unsigned int);
+	else
+		num = va_arg(args, unsigned int);
 
 	if (hash && num != 0)
-	{
-		count += _putchar('0');
+{
+	    count += _putchar('0');
 		count += _putchar('X');
-	}
-
-	count += print_base(num, 16, 1);
+}
+    count += print_base(num, 16, 1);
 }	
 
 else if (format[i] == 'S')
