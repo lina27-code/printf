@@ -43,6 +43,7 @@ int print_rot13(va_list args, fmt_t *fmt);
 
 /* helper for number printing */
 int print_number_with_fmt(long n, fmt_t *fmt);
+int print_unsigned_with_fmt(unsigned long n, fmt_t *fmt, int base, int uppercase);
 
 /* core printf function */
 int _printf(const char *format, ...);

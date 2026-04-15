@@ -8,6 +8,8 @@ int print_number_with_fmt(long n, fmt_t *fmt)
     int count, digits, leading_zeros, i;
     char sign_char;
     char buffer[32];
+    int total_len, pad_len;
+    char pad_char;
 
     count = 0;
     digits = 0;
@@ -47,6 +49,25 @@ int print_number_with_fmt(long n, fmt_t *fmt)
     else if (fmt->precision == 0 && num == 0)
         digits = 0;
 
+      /* total length of the number part (sign + leading zeros + digits) */
+    total_len = (sign_char ? 1 : 0) + leading_zeros + digits;
+
+    /* decide padding character: '0' if zero flag set and not left-justified and no precision */
+    if (fmt->zero && !fmt->minus && fmt->precision == -1)
+        pad_char = '0';
+    else
+        pad_char = ' ';
+
+    pad_len = (fmt->width > total_len) ? (fmt->width - total_len) : 0;
+
+    /* right‑justified: print spaces first (if pad_char is space) */
+    if (!fmt->minus && pad_char == ' ')
+    {
+        for (i = 0; i < pad_len; i++)
+            buf_char(' ');
+        count += pad_len;
+    }
+
     /* print sign */
     if (sign_char)
     {
@@ -54,14 +75,22 @@ int print_number_with_fmt(long n, fmt_t *fmt)
         count++;
     }
 
-    /* leading zeros */
+    /* if zero flag and pad_char is '0', print zeros now */
+    if (!fmt->minus && pad_char == '0')
+    {
+        for (i = 0; i < pad_len; i++)
+            buf_char('0');
+        count += pad_len;
+    }
+
+    /* print leading zeros from precision */
     for (i = 0; i < leading_zeros; i++)
     {
         buf_char('0');
         count++;
     }
 
-    /* digits */
+    /* print digits */
     if (digits > 0)
     {
         i = 0;
@@ -78,17 +107,156 @@ int print_number_with_fmt(long n, fmt_t *fmt)
             count++;
         }
     }
+
+    /* left‑justified: print trailing spaces */
+    if (fmt->minus)
+    {
+        for (i = 0; i < pad_len; i++)
+            buf_char(' ');
+        count += pad_len;
+    }
+
     return count;
 }
 
-/* %d and %i */
+/* ---------- Helper: print unsigned number (for u, o, x, X) with hash, zero, width, precision ---------- */
+int print_unsigned_with_fmt(unsigned long n, fmt_t *fmt, int base, int uppercase)
+{
+    char digits[] = "0123456789abcdef";
+    char buffer[64];
+    int i, count, num_digits, leading_zeros, j;
+    int total_len, pad_len;
+    char pad_char;
+    int prefix_len = 0;
+    char prefix[3] = {0};
+
+    count = 0;
+    num_digits = 0;
+    leading_zeros = 0;
+
+    /* handle hash flag (#) */
+    if (fmt->hash && n != 0)
+    {
+        if (base == 8)
+        {
+            prefix[0] = '0';
+            prefix_len = 1;
+        }
+        else if (base == 16)
+        {
+            prefix[0] = '0';
+            prefix[1] = uppercase ? 'X' : 'x';
+            prefix_len = 2;
+        }
+    }
+
+    /* count digits */
+    if (n == 0)
+        num_digits = 1;
+    else
+    {
+        unsigned long tmp = n;
+        while (tmp)
+        {
+            num_digits++;
+            tmp /= base;
+        }
+    }
+
+    if (fmt->precision > num_digits)
+        leading_zeros = fmt->precision - num_digits;
+    else if (fmt->precision == 0 && n == 0)
+        num_digits = 0;
+
+    /* total length = prefix + leading zeros + digits */
+    total_len = prefix_len + leading_zeros + num_digits;
+
+    /* decide padding character */
+    if (fmt->zero && !fmt->minus && fmt->precision == -1)
+        pad_char = '0';
+    else
+        pad_char = ' ';
+
+    pad_len = (fmt->width > total_len) ? (fmt->width - total_len) : 0;
+
+    /* right‑justified: spaces first (if pad_char is space) */
+    if (!fmt->minus && pad_char == ' ')
+    {
+        for (j = 0; j < pad_len; j++)
+            buf_char(' ');
+        count += pad_len;
+    }
+
+    /* print prefix */
+    for (j = 0; j < prefix_len; j++)
+    {
+        buf_char(prefix[j]);
+        count++;
+    }
+
+    /* print zeros from zero flag */
+    if (!fmt->minus && pad_char == '0')
+    {
+        for (j = 0; j < pad_len; j++)
+            buf_char('0');
+        count += pad_len;
+    }
+
+    /* print leading zeros from precision */
+    for (j = 0; j < leading_zeros; j++)
+    {
+        buf_char('0');
+        count++;
+    }
+
+    /* convert digits */
+    if (num_digits > 0)
+    {
+        unsigned long tmp = n;
+        i = 0;
+        while (tmp)
+        {
+            int rem = tmp % base;
+            char c = digits[rem];
+            if (uppercase && rem > 9)
+                c = c - 32;
+            buffer[i++] = c;
+            tmp /= base;
+        }
+        if (i == 0)
+            buffer[i++] = '0';
+        while (i > 0)
+        {
+            buf_char(buffer[--i]);
+            count++;
+        }
+    }
+
+    /* left‑justified: trailing spaces */
+    if (fmt->minus)
+    {
+        for (j = 0; j < pad_len; j++)
+            buf_char(' ');
+        count += pad_len;
+    }
+
+    return count;
+}
+
+/* ---------- %d and %i ---------- */
 int print_int(va_list args, fmt_t *fmt)
 {
-    int n = va_arg(args, int);
+    long n;
+    if (fmt->length == 'l')
+        n = va_arg(args, long);
+    else if (fmt->length == 'h')
+        n = (short)va_arg(args, int);
+    else
+        n = va_arg(args, int);
     return print_number_with_fmt(n, fmt);
 }
 
-/* %c */
+/* ---------- %c ---------- */
 int print_char(va_list args, fmt_t *fmt)
 {
     char c;
@@ -98,7 +266,7 @@ int print_char(va_list args, fmt_t *fmt)
     return 1;
 }
 
-/* %s (with precision) */
+/* ---------- %s ---------- */
 int print_string(va_list args, fmt_t *fmt)
 {
     char *str;
@@ -123,7 +291,7 @@ int print_string(va_list args, fmt_t *fmt)
     return len;
 }
 
-/* %% */
+/* ---------- %% ---------- */
 int print_percent(va_list args, fmt_t *fmt)
 {
     (void)args;
@@ -132,7 +300,7 @@ int print_percent(va_list args, fmt_t *fmt)
     return 1;
 }
 
-/* %b (binary) */
+/* ---------- %b ---------- */
 int print_binary(va_list args, fmt_t *fmt)
 {
     unsigned int n;
@@ -141,82 +309,18 @@ int print_binary(va_list args, fmt_t *fmt)
     (void)fmt;
 
     n = va_arg(args, unsigned int);
-    i = 0;
-    count = 0;
-
     if (n == 0)
     {
         buf_char('0');
         return 1;
     }
-
+    i = 0;
     while (n > 0)
     {
         buffer[i++] = (n % 2) + '0';
         n /= 2;
     }
-    while (i > 0)
-    {
-        buf_char(buffer[--i]);
-        count++;
-    }
-    return count;
-}
-
-/* helper for unsigned numbers with precision */
-static int print_unsigned_base(unsigned long n, fmt_t *fmt, int base, int uppercase)
-{
-    char digits[] = "0123456789abcdef";
-    char buffer[64];
-    int i, count, num_digits, leading_zeros, j;
-    i = 0;
     count = 0;
-    num_digits = 0;
-    leading_zeros = 0;
-
-    /* count digits */
-    if (n == 0)
-        num_digits = 1;
-    else
-    {
-        unsigned long tmp = n;
-        while (tmp)
-        {
-            num_digits++;
-            tmp /= base;
-        }
-    }
-
-    if (fmt->precision > num_digits)
-        leading_zeros = fmt->precision - num_digits;
-    else if (fmt->precision == 0 && n == 0)
-        num_digits = 0;
-
-    /* convert digits */
-    if (num_digits > 0)
-    {
-        unsigned long tmp = n;
-        while (tmp)
-        {
-            int rem = tmp % base;
-            char c = digits[rem];
-            if (uppercase && rem > 9)
-                c = c - 32;
-            buffer[i++] = c;
-            tmp /= base;
-        }
-        if (i == 0)
-            buffer[i++] = '0';
-    }
-
-    /* leading zeros */
-    for (j = 0; j < leading_zeros; j++)
-    {
-        buf_char('0');
-        count++;
-    }
-
-    /* digits in reverse order */
     while (i > 0)
     {
         buf_char(buffer[--i]);
@@ -225,35 +329,59 @@ static int print_unsigned_base(unsigned long n, fmt_t *fmt, int base, int upperc
     return count;
 }
 
-/* %u */
+/* ---------- %u ---------- */
 int print_unsigned(va_list args, fmt_t *fmt)
 {
-    unsigned int n = va_arg(args, unsigned int);
-    return print_unsigned_base(n, fmt, 10, 0);
+    unsigned long n;
+    if (fmt->length == 'l')
+        n = va_arg(args, unsigned long);
+    else if (fmt->length == 'h')
+        n = (unsigned short)va_arg(args, unsigned int);
+    else
+        n = va_arg(args, unsigned int);
+    return print_unsigned_with_fmt(n, fmt, 10, 0);
 }
 
-/* %o */
+/* ---------- %o ---------- */
 int print_octal(va_list args, fmt_t *fmt)
 {
-    unsigned int n = va_arg(args, unsigned int);
-    return print_unsigned_base(n, fmt, 8, 0);
+    unsigned long n;
+    if (fmt->length == 'l')
+        n = va_arg(args, unsigned long);
+    else if (fmt->length == 'h')
+        n = (unsigned short)va_arg(args, unsigned int);
+    else
+        n = va_arg(args, unsigned int);
+    return print_unsigned_with_fmt(n, fmt, 8, 0);
 }
 
-/* %x */
+/* ---------- %x ---------- */
 int print_hex_lower(va_list args, fmt_t *fmt)
 {
-    unsigned int n = va_arg(args, unsigned int);
-    return print_unsigned_base(n, fmt, 16, 0);
+    unsigned long n;
+    if (fmt->length == 'l')
+        n = va_arg(args, unsigned long);
+    else if (fmt->length == 'h')
+        n = (unsigned short)va_arg(args, unsigned int);
+    else
+        n = va_arg(args, unsigned int);
+    return print_unsigned_with_fmt(n, fmt, 16, 0);
 }
 
-/* %X */
+/* ---------- %X ---------- */
 int print_hex_upper(va_list args, fmt_t *fmt)
 {
-    unsigned int n = va_arg(args, unsigned int);
-    return print_unsigned_base(n, fmt, 16, 1);
+    unsigned long n;
+    if (fmt->length == 'l')
+        n = va_arg(args, unsigned long);
+    else if (fmt->length == 'h')
+        n = (unsigned short)va_arg(args, unsigned int);
+    else
+        n = va_arg(args, unsigned int);
+    return print_unsigned_with_fmt(n, fmt, 16, 1);
 }
 
-/* %S (non‑printable chars as \xHH) */
+/* ---------- %S (non‑printable) ---------- */
 int print_S(va_list args, fmt_t *fmt)
 {
     char *str;
@@ -289,7 +417,7 @@ int print_S(va_list args, fmt_t *fmt)
     return count;
 }
 
-/* %p (pointer) */
+/* ---------- %p ---------- */
 int print_pointer(va_list args, fmt_t *fmt)
 {
     void *ptr;
@@ -332,7 +460,7 @@ int print_pointer(va_list args, fmt_t *fmt)
     return count;
 }
 
-/* %r (reverse string) */
+/* ---------- %r (reverse string) ---------- */
 int print_rev(va_list args, fmt_t *fmt)
 {
     char *str;
@@ -350,7 +478,7 @@ int print_rev(va_list args, fmt_t *fmt)
     return len;
 }
 
-/* %R (rot13) */
+/* ---------- %R (rot13) ---------- */
 int print_rot13(va_list args, fmt_t *fmt)
 {
     char *str;
@@ -375,3 +503,19 @@ int print_rot13(va_list args, fmt_t *fmt)
     }
     return count;
 }
+
+
+
+
+   
+
+
+
+   
+  
+
+
+
+  
+
+   
